@@ -4,6 +4,29 @@ import { useState } from 'react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('text');
+  const [inputValue, setInputValue] = useState('');
+  const [results, setResults] = useState(null);
+
+  const handleSearch = async (inputValue) => {
+    try {
+      const nerResponse = await fetch(`http://127.0.0.1:8000/ner/extract?text=${encodeURIComponent(inputValue)}`);
+      const nerData = await nerResponse.json();
+  
+      // NER'den gelen önemli kelimeleri al
+      const keywords = nerData.entities.map(entity => entity.word).join(" ");
+  
+      // Google Custom Search API'yi çağır
+      const searchResponse = await fetch(`http://localhost:8080/api/news/similar?query=${encodeURIComponent(keywords)}`);
+      const searchData = await searchResponse.json();
+  
+      setResults(searchData);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+  
+  
+
 
   return (
     <div className="min-h-screen flex flex-col text-center bg-gradient-to-b from-gray-900 to-black text-white">
@@ -43,6 +66,8 @@ export default function Home() {
                 placeholder="Haber başlığı veya metnini girin"
                 className="w-full max-w-md px-4 py-3 border border-gray-600 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-white"
                 rows="1"
+                onChange={(e) => setInputValue(e.target.value)}
+                value={inputValue}
                 onInput={(e) => {
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
@@ -55,8 +80,10 @@ export default function Home() {
                 className="w-full max-w-md px-4 py-3 border border-gray-600 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-white"
               />
             )}
-            <button className="px-6 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition-colors">
+            <button className="px-6 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition-colors"
+            onClick={() => handleSearch(inputValue)}>
               Ara
+     
             </button>
           </div>
         </section>
@@ -74,6 +101,25 @@ export default function Home() {
             <h2 className="text-xl font-semibold mb-2">Detaylı Rapor</h2>
             <p className="text-gray-300">Kapsamlı analiz raporu.</p>
           </div>
+        </section>
+
+        <section className="mt-16">
+          <h2 className="text-3xl font-semibold mb-4">Sonuçlar</h2>
+
+          {results && results.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto">
+                          {results && results.map((news, index) => (
+                <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-lg">
+                  <h3 className="text-xl font-semibold mb-2">{news.title}</h3>
+                  <p className="text-gray-300">{news.snippet}</p>
+                  <a href={news.link} target="_blank" className="text-blue-400">Haberi Oku</a>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-300">Sonuç bulunamadı.</p>
+          )}
+            
         </section>
       </main>
 
