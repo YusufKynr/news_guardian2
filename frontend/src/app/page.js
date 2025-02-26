@@ -19,6 +19,10 @@ export default function Home() {
       //const keywords = nerData.entities.map(entity => entity.word).join(" ");
   
       // Google Custom Search API'yi çağır
+
+      if(!inputValue){
+        alert("Lütfen haber başlığı veya haber metni girin!")
+      }
       const searchResponse = await fetch(`http://localhost:8080/news/similar?query=${encodeURIComponent(inputValue)}`);
       const searchData = await searchResponse.json();
       
@@ -112,7 +116,16 @@ export default function Home() {
               />
             )}
             <button className="px-6 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition-colors"
-            onClick={() => handlePostImage(selectedImage)}>
+           
+
+            onClick={() => {
+              if(activeTab === 'text'){
+                handleSearch();
+              }
+              else{
+                handlePostImage();
+              }
+            }}>
               Ara
      
             </button>
