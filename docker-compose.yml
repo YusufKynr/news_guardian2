@@ -1,21 +1,44 @@
 version: "3.8"
 
 services:
+
+  imgconvertservice:
+    build: ./imgConvertService
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./imgConvertService:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
+
   backend:
     build: ./backend
     ports:
       - "8080:8080"
+    volumes:
+      - ./backend:/app 
+      - /app/target 
     depends_on:
       - ner-service
+      - imgconvertservice
+    command: ["./mvnw", "spring-boot:run"]  
 
   ner-service:
     build: ./ner-service
     ports:
       - "8000:8000"
+    volumes:
+      - ./ner-service:/app  # Hot reload için
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules 
+    environment:
+      - NODE_ENV=development
+    command: ["npm", "run", "dev"]
     depends_on:
       - backend

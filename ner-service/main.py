@@ -20,6 +20,7 @@ model = AutoModelForTokenClassification.from_pretrained(MODEL_NAME)
 
 ner_pipeline = pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple")
 
+
 @app.get("/ner/extract")
 def extract_entities(text: str = Query(..., description="Analiz edilecek metin")):
     """

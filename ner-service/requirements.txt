@@ -1,2 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 uvicorn
 fastapi
+transformers
+torch==2.1.0+cpu
+numpy==1.26.4

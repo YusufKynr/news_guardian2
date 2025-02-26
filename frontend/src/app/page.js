@@ -6,24 +6,54 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('text');
   const [inputValue, setInputValue] = useState('');
   const [results, setResults] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+
 
   const handleSearch = async (inputValue) => {
     try {
-      const nerResponse = await fetch(`http://127.0.0.1:8000/ner/extract?text=${encodeURIComponent(inputValue)}`);
-      const nerData = await nerResponse.json();
+      //const nerResponse = await fetch(`http://127.0.0.1:8000/ner/extract?text=${encodeURIComponent(inputValue)}`);
+      
+      //const nerData = await nerResponse.json();
   
       // NER'den gelen önemli kelimeleri al
-      const keywords = nerData.entities.map(entity => entity.word).join(" ");
+      //const keywords = nerData.entities.map(entity => entity.word).join(" ");
   
       // Google Custom Search API'yi çağır
-      const searchResponse = await fetch(`http://localhost:8080/api/news/similar?query=${encodeURIComponent(keywords)}`);
+      const searchResponse = await fetch(`http://localhost:8080/news/similar?query=${encodeURIComponent(inputValue)}`);
       const searchData = await searchResponse.json();
-  
+      
+      console.log("Api response:", searchData);
       setResults(searchData);
     } catch (error) {
       console.error("Error:", error);
     }
   };
+
+  const handlePostImage = async (image) => {
+    if(!image){
+      alert("Lütfen bir resim seçin!")
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', image); //file backend de karşılanacak anahtar
+  
+      const response = await fetch('http://localhost:5000/news/uploadImg', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+  
+      console.log("Api response:", data);
+      setResults(data);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+
+  
+  
   
   
 
@@ -63,7 +93,7 @@ export default function Home() {
           <div className="flex justify-center gap-4">
             {activeTab === 'text' ? (
               <textarea
-                placeholder="Haber başlığı veya metnini girin"
+                placeholder="Haber başlığı veya haber metnini girin"
                 className="w-full max-w-md px-4 py-3 border border-gray-600 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-white"
                 rows="1"
                 onChange={(e) => setInputValue(e.target.value)}
@@ -76,12 +106,13 @@ export default function Home() {
             ) : (
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg, image/png, image/jpg"
                 className="w-full max-w-md px-4 py-3 border border-gray-600 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-white"
+                onChange={(e) => setSelectedImage(e.target.files[0])}
               />
             )}
             <button className="px-6 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition-colors"
-            onClick={() => handleSearch(inputValue)}>
+            onClick={() => handlePostImage(selectedImage)}>
               Ara
      
             </button>
@@ -108,13 +139,12 @@ export default function Home() {
 
           {results && results.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto">
-                          {results && results.map((news, index) => (
-                <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-lg">
-                  <h3 className="text-xl font-semibold mb-2">{news.title}</h3>
-                  <p className="text-gray-300">{news.snippet}</p>
-                  <a href={news.link} target="_blank" className="text-blue-400">Haberi Oku</a>
-                </div>
-              ))}
+                                    {results && results.map((news, index) => (
+              <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-lg">
+                  <h3 className="text-xl font-semibold mb-2">Kind: {news.items}</h3>
+              </div>
+          ))}
+
             </div>
           ) : (
             <p className="text-gray-300">Sonuç bulunamadı.</p>
