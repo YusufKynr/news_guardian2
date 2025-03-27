@@ -19,7 +19,7 @@ export default function Home() {
       //const keywords = nerData.entities.map(entity => entity.word).join(" ");
   
       // Google Custom Search API'yi çağır
-
+      
       if(!inputValue){
         alert("Lütfen haber başlığı veya haber metni girin!")
       }
@@ -34,6 +34,7 @@ export default function Home() {
   };
 
   const handlePostImage = async (image) => {
+    alert(activeTab)
     if(!image){
       alert("Lütfen bir resim seçin!")
       return;
@@ -100,8 +101,9 @@ export default function Home() {
                 placeholder="Haber başlığı veya haber metnini girin"
                 className="w-full max-w-md px-4 py-3 border border-gray-600 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-white"
                 rows="1"
-                onChange={(e) => setInputValue(e.target.value)}
                 value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+
                 onInput={(e) => {
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
@@ -120,10 +122,11 @@ export default function Home() {
 
             onClick={() => {
               if(activeTab === 'text'){
-                handleSearch();
+                handleSearch(inputValue
+                );
               }
               else{
-                handlePostImage();
+                handlePostImage(selectedImage);
               }
             }}>
               Ara
@@ -154,7 +157,9 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto">
                                     {results && results.map((news, index) => (
               <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-lg">
-                  <h3 className="text-xl font-semibold mb-2">Kind: {news.items}</h3>
+                  <h3 className="text-xl font-semibold mb-2">{index+1}. Haber</h3>
+                  <h4 style={{color:"red"}}>{news.title}</h4>
+                  <div>{news.snippet}</div>
               </div>
           ))}
 

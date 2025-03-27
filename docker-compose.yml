@@ -8,7 +8,7 @@ services:
       - "8090:8090"
     volumes:
       - "C:/Users/Yusuf/bitirmetezi/news_guardian/image-service:/app"
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8090", "--reload"]
 
   backend:
     build: ./backend
@@ -20,6 +20,12 @@ services:
     depends_on:
       - ner-service
       - image-service
+    environment:
+    - SPRING_DATASOURCE_URL=
+    - SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+    - GOOGLE_API_KEY=Y0f47ea95044c5e7abe81c4292528be4247bfefc2
+    - GOOGLE_SEARCH_ENGINE_ID=437d145e403364572
+    - FASTAPI_OCR_URL=http://localhost:8090/img/convert
     command: ["./mvnw", "spring-boot:run"]  
 
   ner-service:
@@ -32,14 +38,18 @@ services:
 
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules 
+      - ./frontend:/app  
+      - /app/node_modules  
     environment:
       - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true  
     command: ["npm", "run", "dev"]
     depends_on:
       - backend
