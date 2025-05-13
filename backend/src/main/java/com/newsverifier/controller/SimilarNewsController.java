@@ -4,27 +4,31 @@ import java.util.List;
 import java.util.Map;
 
 import com.newsverifier.service.SimilarNewsService;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 
-
-
+@CrossOrigin(origins = "${cors.allowed-origins:http://localhost:3000}")
 @RestController
 @RequestMapping("/similar")
-@CrossOrigin(origins = "http://localhost:3000")
+@RequiredArgsConstructor
 public class SimilarNewsController {
-    
-    SimilarNewsService newsService = new SimilarNewsService();
+    private static final Logger logger = LoggerFactory.getLogger(SimilarNewsController.class);
 
-    public SimilarNewsController(SimilarNewsService newsService) {
-        this.newsService = newsService;
-    }
+    private final SimilarNewsService newsService;
 
-    @GetMapping("/similar")
-    public List<Map<String, Object>> getSimilarNews(@RequestParam String query) {
-        return newsService.getSimilarNews(query);
+    @GetMapping
+    public ResponseEntity<List<Map<String, Object>>> getSimilarNews(@RequestParam String query) {
+        logger.info("Benzer haberler aranıyor. Sorgu: {}", query);
+        try {
+            List<Map<String, Object>> results = newsService.getSimilarNews(query);
+            logger.info("Benzer haberler bulundu. Sonuç sayısı: {}", results.size());
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            logger.error("Benzer haberler aranırken hata oluştu: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 }

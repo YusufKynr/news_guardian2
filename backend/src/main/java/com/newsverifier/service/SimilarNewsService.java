@@ -5,67 +5,118 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.newsverifier.model.CustomSearchResponse;
+import com.newsverifier.model.SearchItem;
 
 @Service
+@RequiredArgsConstructor
 public class SimilarNewsService {
+    private static final Logger logger = LoggerFactory.getLogger(SimilarNewsService.class);
+    private static final double SIMILARITY_THRESHOLD = 0.3; // Benzerlik eşiği
 
     @Value("${google.api.key}")
-    private String GOOGLE_API_KEY;
+    private String googleApiKey;
 
     @Value("${google.search.engine.id}")
-    private String SEARCH_ENGINE_ID;
+    private String searchEngineId;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    
-    private final FetchNewsDataService fetchNewsDataService = new FetchNewsDataService();
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final FetchNewsDataService fetchNewsDataService;
+    private final GoogleCustomSearchService googleCustomSearchService;
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getSimilarNews(String query) {
-        String SEARCH_URL = String.format(
-                "https://www.googleapis.com/customsearch/v1?key=%s&cx=%s&q=%s",
-                GOOGLE_API_KEY, SEARCH_ENGINE_ID, query);
+        if (query == null || query.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Arama sorgusu boş olamaz");
+        }
+
+        logger.info("Google API Konfigürasyonu:");
+        logger.info("API Key: {}", maskApiKey(googleApiKey));
+        logger.info("Search Engine ID: {}", searchEngineId);
 
         try {
-            Map<String, Object> response = restTemplate.getForObject(SEARCH_URL, Map.class);
-            if (response == null) {
-                System.err.println("Google API'den boş yanıt alındı.");
+            CustomSearchResponse searchResponse = googleCustomSearchService.search(query, 10);
+            if (searchResponse == null || searchResponse.getItems() == null) {
                 return Collections.emptyList();
             }
 
-            List<Map<String, Object>> results = new ArrayList<>();
-            List<Map<String, Object>> items = new ArrayList<>();
+            List<Map<String, Object>> similarNews = new ArrayList<>();
+            for (SearchItem item : searchResponse.getItems()) {
+                try {
+                    // Haber içeriğini çek
+                    Map<String, String> newsData = fetchNewsDataService.fetchNewsData(item.getLink());
 
-            Object rawItems = response.get("items");
-            if (rawItems instanceof List<?>) {
-                for (Object itemObj : (List<?>) rawItems) {
-                    if (itemObj instanceof Map<?, ?>) {
-                        items.add((Map<String, Object>) itemObj);
+                    // Benzerlik oranını hesapla
+                    double similarity = calculateSimilarity(query,
+                            newsData.get("title") + " " + newsData.get("content"));
+
+                    // Sadece belirli bir eşik değerinin üzerindeki haberleri ekle
+                    if (similarity >= SIMILARITY_THRESHOLD) {
+                        Map<String, Object> newsItem = new HashMap<>();
+                        newsItem.put("title", newsData.get("title"));
+                        newsItem.put("snippet", newsData.get("summary"));
+                        newsItem.put("link", item.getLink());
+                        newsItem.put("similarity", similarity);
+                        similarNews.add(newsItem);
                     }
+                } catch (Exception e) {
+                    logger.error("Haber verisi çekilemedi: {}", item.getLink(), e);
                 }
             }
 
-            for (Map<String, Object> item : items) {
-                Map<String, Object> news = new HashMap<>();
-
-                String link = (String) item.get("link");
-                Map<String, String> extracted = fetchNewsDataService.fetchNewsData(link);
-
-                news.put("title", extracted.get("title"));
-                news.put("summary", extracted.get("summary"));
-
-                results.add(news);
-                System.out.println(news);
-            }
-
-            return results;
-
+            return similarNews;
         } catch (Exception e) {
-            System.err.println("Google API isteği başarısız: " + e.getMessage());
+            logger.error("Benzer haberler alınırken hata oluştu", e);
             return Collections.emptyList();
         }
+    }
+
+    private double calculateSimilarity(String query, String newsContent) {
+        // Metinleri küçük harfe çevir ve kelimelere ayır
+        String[] queryWords = query.toLowerCase().split("\\s+");
+        String[] newsWords = newsContent.toLowerCase().split("\\s+");
+
+        // Ortak kelimeleri say
+        int commonWords = 0;
+        for (String queryWord : queryWords) {
+            for (String newsWord : newsWords) {
+                if (queryWord.equals(newsWord)) {
+                    commonWords++;
+                    break;
+                }
+            }
+        }
+
+        // Benzerlik oranını hesapla (ortak kelime sayısı / sorgu kelime sayısı)
+        return (double) commonWords / queryWords.length;
+    }
+
+    private String maskApiKey(String input) {
+        if (input == null)
+            return null;
+        return input.replaceAll("AIza[0-9A-Za-z-_]{32}", "AIza***MASKED***");
+    }
+
+    private Map<String, Object> sanitizeResponse(Map<String, Object> response) {
+        if (response == null)
+            return null;
+
+        Map<String, Object> sanitized = new HashMap<>(response);
+        if (sanitized.containsKey("queries")) {
+            sanitized.put("queries", "***MASKED***");
+        }
+        return sanitized;
     }
 }
