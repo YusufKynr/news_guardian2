@@ -22,10 +22,5 @@ public class FetchSimilarNewsController {
                 .map(GoogleSearchResultItem::getLink)   // sadece link alanı
                 .toList();
     }
-    
-    @PostMapping("/news/similar")
-    public List<SimilarNewsModel> fetchSimilarNews(@RequestBody String newsText) {
-        return fetchSimilarNewsService.getSimilarNewsWithPlaywright(newsText);
-    }
 
 }
