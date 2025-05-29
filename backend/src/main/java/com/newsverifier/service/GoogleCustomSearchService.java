@@ -1,59 +1,45 @@
 package com.newsverifier.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.newsverifier.model.CustomSearchResponse;
+import com.newsverifier.model.search.GoogleSearchResultItem;
+import com.newsverifier.model.search.GoogleSearchResultList;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+import java.util.List;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoogleCustomSearchService {
-    private static final Logger logger = LoggerFactory.getLogger(GoogleCustomSearchService.class);
 
-    @Value("${google.api.key}")
-    private String googleApiKey;
+    @Value("${google.api.key}") private String apiKey;
+    @Value("${google.api.cx}")  private String cx;
+    private final RestTemplate restTemplate;   // dışarıdan enjekte
 
-    @Value("${google.search.engine.id}")
-    private String searchEngineId;
+    public List<GoogleSearchResultItem> searchNews(String query) {
+        URI uri = UriComponentsBuilder.newInstance()
+                .scheme("https").host("www.googleapis.com").path("/customsearch/v1")
+                .queryParam("key", apiKey)
+                .queryParam("cx", cx)
+                .queryParam("q", query)
+                .queryParam("num", 10)
+                .queryParam("fields", "items(title,snippet,link)")
+                .encode()                // UTF-8
+                .build()
+                .toUri();
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
-
-    public CustomSearchResponse search(String query, int numResults) {
         try {
-            String searchUrl = String.format(
-                    "https://www.googleapis.com/customsearch/v1?key=%s&cx=%s&q=%s&num=%d",
-                    googleApiKey, searchEngineId, query, numResults);
-
-            logger.info("Google API'ye istek gönderiliyor. URL: {}", maskApiKey(searchUrl));
-
-            CustomSearchResponse response = restTemplate.getForObject(searchUrl, CustomSearchResponse.class);
-
-            if (response == null) {
-                logger.error("Google API'den boş yanıt alındı");
-                throw new ResponseStatusException(
-                        HttpStatus.SERVICE_UNAVAILABLE,
-                        "Google API servisine şu anda ulaşılamıyor");
-            }
-
-            logger.info("Google API yanıtı alındı: {}", objectMapper.writeValueAsString(response));
-            return response;
-
-        } catch (Exception e) {
-            logger.error("Google API isteği başarısız: {}", e.getMessage(), e);
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Google API hatası: " + e.getMessage());
+            GoogleSearchResultList res =
+                    restTemplate.getForObject(uri, GoogleSearchResultList.class);
+            return (res == null || res.getItems() == null) ? List.of() : res.getItems();
+        } catch (Exception ex) {
+            log.warn("Google search error for [{}] – {}", query, ex.getMessage());
+            return List.of();
         }
-    }
-
-    private String maskApiKey(String url) {
-        return url.replaceAll("key=[^&]+", "key=***");
     }
 }
