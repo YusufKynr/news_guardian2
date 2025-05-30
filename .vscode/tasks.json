@@ -38,11 +38,11 @@
         }
       },
       {
-        "label": "Start Playwright",
+        "label": "Start ScrapService",
         "type": "shell",
-        "command": "py -m uvicorn main:app --reload --port 8080",
+        "command": "py -m uvicorn main:app --reload --port 8001",
         "options": {
-          "cwd": "${workspaceFolder}/playwright"
+          "cwd": "${workspaceFolder}/scrapservice"
         },
         "group": "build",
         "problemMatcher": [],
@@ -61,7 +61,7 @@
         "dependsOn": [
           "Start Frontend",
           "Start Backend",
-          "Start Playwright"
+          "Start ScrapService"
         ],
         "group": {
           "kind": "build",
@@ -70,11 +70,11 @@
         "problemMatcher": []
       },
       {
-        "label": "Start Backend + Playwright",
+        "label": "Start Backend + ScrapService",
         "dependsOrder": "parallel",
         "dependsOn": [
           "Start Backend",
-          "Start Playwright"
+          "Start ScrapService"
         ],
         "group": "build",
         "problemMatcher": []
