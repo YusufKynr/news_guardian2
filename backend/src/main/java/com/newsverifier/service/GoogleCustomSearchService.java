@@ -27,7 +27,7 @@ public class GoogleCustomSearchService {
                 .queryParam("key", apiKey)
                 .queryParam("cx", cx)
                 .queryParam("q", query)
-                .queryParam("num", 10)
+                .queryParam("num", 1)
                 .queryParam("fields", "items(title,snippet,link)")
                 .encode()                // UTF-8
                 .build()

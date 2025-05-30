@@ -1,25 +1,27 @@
 from fastapi import FastAPI
-from playwright.sync_api import sync_playwright
+from pydantic import BaseModel
+from typing import List
+import asyncio
+from playwright.async_api import async_playwright
 
 app = FastAPI()
 
-def get_page_title_internal(url):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        try:
-            page.goto(url, timeout=15000)
-            title = page.title()
-        except Exception as e:
-            title = f"Hata oluştu: {e}"
-        browser.close()
-        return title
+class URLListRequest(BaseModel):
+    urls: List[str]
 
-@app.get("/get-title")
-async def get_title_endpoint(url: str):
-    return {"title": get_page_title_internal(url)}
+async def get_title(url: str) -> str:
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.goto(url, timeout=15000)
+            title = await page.title()
+            await browser.close()
+            return title
+    except Exception as e:
+        return f"Hata: {e}"
 
-# Örnek kullanım (Artık doğrudan çalıştırılmayacak, uvicorn ile servis edilecek)
-# if __name__ == "__main__":
-#     url = input("Başlığını çekmek istediğiniz URL'yi girin: ")
-#     print("Sayfa Başlığı:", get_page_title_internal(url))
+@app.post("/get-titles")
+async def get_titles(request: URLListRequest):
+    titles = await asyncio.gather(*[get_title(url) for url in request.urls])
+    return [{"url": u, "title": t} for u, t in zip(request.urls, titles)]

@@ -21,6 +21,7 @@ public class FetchSimilarNewsController {
         return googleCustomSearchService.searchNews(newsText).stream()
                 .map(GoogleSearchResultItem::getLink)   // sadece link alanı
                 .toList();
+
     }
 
 }
