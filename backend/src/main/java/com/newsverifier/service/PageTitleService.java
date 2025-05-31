@@ -1,5 +1,6 @@
 package com.newsverifier.service;
 
+import com.newsverifier.model.TitleResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,14 +29,35 @@ public class PageTitleService {
                     body,
                     TitleResponse[].class
             );
+
             return (response != null && response.length > 0)
-                    ? response[0]
-                    : new TitleResponse(url, "Başlık alınamadı");
+                    ? new TitleResponse(
+                    "",                    // inputText - burada kullanılmıyor
+                    List.of(),            // inputNER - burada kullanılmıyor
+                    url,                  // url
+                    response[0].getTitle(), // title
+                    List.of(),            // titleNER - burada kullanılmıyor
+                    "Başlık başarıyla çekildi"
+            )
+                    : new TitleResponse(
+                    "",                    // inputText
+                    List.of(),            // inputNER
+                    url,                  // url
+                    "Başlık alınamadı",   // title
+                    List.of(),            // titleNER
+                    "Başlık alınamadı"
+            );
+
         } catch (Exception e) {
             log.error("Python scraping servis hatası: {}", e.getMessage());
-            return new TitleResponse(url, "Başlık alınamadı (HATA)");
+            return new TitleResponse(
+                    "",                    // inputText
+                    List.of(),            // inputNER
+                    url,                  // url
+                    "Başlık alınamadı (HATA)", // title
+                    List.of(),            // titleNER
+                    "Python servis hatası: " + e.getMessage()
+            );
         }
     }
-
-    public record TitleResponse(String url, String title) {}
 }
