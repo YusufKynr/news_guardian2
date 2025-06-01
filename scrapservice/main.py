@@ -24,6 +24,47 @@ TIME_PATTERN = re.compile(r'\b(?:[01]?\d|2[0-3])[:.][0-5]\d\b')
 # Türkçe tarih tespit etmek için regex pattern'ları (14 Mayıs 2025 veya 14 Ekim formatı)
 DATE_PATTERN = re.compile(r'\b(?:[1-9]|[12]\d|3[01])\s+(?:Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)(?:\s+(?:19|20)\d{2})?\b', re.IGNORECASE)
 
+# Haber kaynak adları listesi
+NEWS_SOURCES = [
+    "CNN Türk", "NTV", "Hürriyet", "Sabah", "Milliyet", "Sözcü", "Cumhuriyet",
+    "Habertürk", "A Haber", "TRT Haber", "BBC Türkçe", "Anadolu Ajansı",
+    "Bengü Türk", "Kanal D", "Show TV", "ATV", "Star TV", "Fox TV",
+    "Euronews Türkçe", "DHA", "İHA", "AA", "Reuters", "Bloomberg HT",
+    "Ekonomist", "Dünya", "Yeni Şafak", "Akşam", "Takvim", "Posta",
+    "Marmaris Haber", "Marmaris Gündem", "Marmaris Yeni Sayfa", "Son Dakika Haberleri Haber", "Euronews"
+]
+
+def clean_title_from_sources(title: str) -> str:
+    """Title'dan haber kaynak adlarını temizler"""
+    if not title:
+        return title
+    
+    cleaned_title = title
+    
+    # Her kaynak adını kontrol et ve temizle
+    for source in NEWS_SOURCES:
+        patterns_to_remove = [
+            f" - {source}",      # " - CNN Türk"
+            f" | {source}",      # " | NTV" 
+            f"- {source}",       # "- Hürriyet"
+            f"| {source}",       # "| Sabah"
+            f" {source}",        # " Milliyet" (title sonunda)
+            f"({source})",       # "(BBC Türkçe)"
+            f" [{source}]",      # " [Reuters]"
+        ]
+        
+        for pattern in patterns_to_remove:
+            # Büyük/küçük harf duyarsız temizleme
+            cleaned_title = re.sub(re.escape(pattern), "", cleaned_title, flags=re.IGNORECASE)
+    
+    # Fazla boşlukları ve özel karakterleri temizle
+    cleaned_title = re.sub(r'\s+', ' ', cleaned_title)  # Çoklu boşlukları tek boşluğa çevir
+    cleaned_title = re.sub(r'^\s*[-|]+\s*', '', cleaned_title)  # Başlangıçtaki tire/pipe
+    cleaned_title = re.sub(r'\s*[-|]+\s*$', '', cleaned_title)  # Sonundaki tire/pipe
+    cleaned_title = cleaned_title.strip()
+    
+    return cleaned_title
+
 def extract_numbers(text: str):
     """Metinden sayıları tespit eder"""
     numbers = []
@@ -81,28 +122,56 @@ def extract_entities(text: str):
         date_entities = extract_dates(text)
         
         # 2. Tarih bulunan yerlerini metinden geçici olarak çıkar
-        text_without_dates = text
+        text_cleaned = text
         for date_entity in date_entities:
-            text_without_dates = text_without_dates.replace(date_entity["word"], " [DATE_PLACEHOLDER] ")
+            text_cleaned = text_cleaned.replace(date_entity["word"], " [DATE_PLACEHOLDER] ")
         
-        # 3. NER model ile varlık tespiti (temizlenmiş metinde)
-        raw_entities = ner_pipeline(text_without_dates)
-        filtered = [e for e in raw_entities if e["entity_group"] in {"PER", "ORG", "LOC"}]
-        ner_entities = [{"entity": e["entity_group"], "word": e["word"]} for e in filtered]
+        # 3. NER modelini sadece bir kez çağır (tutarlılık için)
+        all_raw_entities = ner_pipeline(text_cleaned)
         
-        # 4. Saat tespiti yap (zaten temizlenmiş metinde)
-        time_entities = extract_times(text_without_dates)
+        # 4. Entity'leri tiplerine göre ayır ve öncelik sırasına göre işle
         
-        # 5. Saat bulunan yerlerini de çıkar
-        text_without_dates_times = text_without_dates
+        # PER (Kişi) entity'lerini önce işle
+        per_entities = []
+        for entity in all_raw_entities:
+            if entity["entity_group"] == "PER":
+                per_entities.append({"entity": entity["entity_group"], "word": entity["word"]})
+                # PER bulunduğu yeri metinden çıkar
+                text_cleaned = text_cleaned.replace(entity["word"], " [PER_PLACEHOLDER] ")
+        
+        # LOC (Yer) entity'lerini sonra işle
+        loc_entities = []
+        for entity in all_raw_entities:
+            if entity["entity_group"] == "LOC":
+                # Bu kelime daha önce PER olarak işlendi mi kontrol et
+                if entity["word"] not in [per["word"] for per in per_entities]:
+                    loc_entities.append({"entity": entity["entity_group"], "word": entity["word"]})
+                    # LOC bulunduğu yeri metinden çıkar
+                    text_cleaned = text_cleaned.replace(entity["word"], " [LOC_PLACEHOLDER] ")
+        
+        # ORG (Organizasyon) entity'lerini en son işle
+        org_entities = []
+        used_words = [per["word"] for per in per_entities] + [loc["word"] for loc in loc_entities]
+        for entity in all_raw_entities:
+            if entity["entity_group"] == "ORG":
+                # Bu kelime daha önce PER veya LOC olarak işlendi mi kontrol et
+                if entity["word"] not in used_words:
+                    org_entities.append({"entity": entity["entity_group"], "word": entity["word"]})
+                    # ORG bulunduğu yeri metinden çıkar
+                    text_cleaned = text_cleaned.replace(entity["word"], " [ORG_PLACEHOLDER] ")
+        
+        # 5. Saat tespiti yap (temizlenmiş metinde)
+        time_entities = extract_times(text_cleaned)
+        
+        # Saatleri de çıkar
         for time_entity in time_entities:
-            text_without_dates_times = text_without_dates_times.replace(time_entity["word"], " [TIME_PLACEHOLDER] ")
+            text_cleaned = text_cleaned.replace(time_entity["word"], " [TIME_PLACEHOLDER] ")
         
         # 6. Temizlenmiş metinde sayı tespiti yap
-        number_entities = extract_numbers(text_without_dates_times)
+        number_entities = extract_numbers(text_cleaned)
         
         # 7. Tüm entity'leri birleştir
-        all_entities = ner_entities + date_entities + time_entities + number_entities
+        all_entities = per_entities + loc_entities + org_entities + date_entities + time_entities + number_entities
         
         return all_entities
     except Exception as e:
@@ -148,7 +217,15 @@ async def get_title(url: str) -> str:
             
             title = await page.title()
             await browser.close()
-            return title if title else "Başlık bulunamadı"
+            
+            if title:
+                # Title'ı haber kaynak adlarından temizle
+                cleaned_title = clean_title_from_sources(title)
+                print(f"Orijinal title: {title}")
+                print(f"Temizlenmiş title: {cleaned_title}")
+                return cleaned_title if cleaned_title else "Başlık bulunamadı"
+            else:
+                return "Başlık bulunamadı"
     except Exception as e:
         return f"Hata: {str(e)}"
 
