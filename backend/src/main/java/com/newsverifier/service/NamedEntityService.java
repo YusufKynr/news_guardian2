@@ -8,9 +8,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -40,8 +38,11 @@ public class NamedEntityService {
                     NERApiResponseItem[].class
             );
 
-            log.info("NER response alındı: {}", response.getBody());
-            return response.getBody() != null ? Arrays.asList(response.getBody()) : List.of();
+            List<NERApiResponseItem> nerResults = response.getBody() != null ? 
+                Arrays.asList(response.getBody()) : List.of();
+            
+            log.info("NER response alındı: {}", nerResults);
+            return nerResults;
         } catch (Exception e) {
             log.error("NER servisi hatası: {}", e.getMessage());
             // Hata durumunda boş liste döndür

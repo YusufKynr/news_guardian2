@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import asyncio
+import re
 from playwright.async_api import async_playwright
 
 app = FastAPI()
@@ -14,13 +15,43 @@ model = AutoModelForTokenClassification.from_pretrained(model_name)
 
 ner_pipeline = pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple")
 
+# Sayı tespit etmek için regex pattern'ları
+NUMBER_PATTERN = re.compile(r'\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\b|\b\d+[.,]\d+\b|\b\d+\b')
+
+def extract_numbers(text: str):
+    """Metinden sayıları tespit eder"""
+    numbers = []
+    if not text:
+        return numbers
+    
+    matches = NUMBER_PATTERN.finditer(text)
+    found_numbers = set()  # Tekrarları önlemek için
+    
+    for match in matches:
+        number_str = match.group().strip()
+        if len(number_str) >= 1 and number_str not in found_numbers:
+            numbers.append({"entity": "NUMBER", "word": number_str})
+            found_numbers.add(number_str)
+    
+    return numbers
+
 def extract_entities(text: str):
     try:
+        # 1. NER model ile varlık tespiti
         raw_entities = ner_pipeline(text)
         filtered = [e for e in raw_entities if e["entity_group"] in {"PER", "ORG", "LOC"}]
-        return [{"entity": e["entity_group"], "word": e["word"]} for e in filtered]
+        ner_entities = [{"entity": e["entity_group"], "word": e["word"]} for e in filtered]
+        
+        # 2. Sayı tespiti
+        number_entities = extract_numbers(text)
+        
+        # 3. Tüm entity'leri birleştir
+        all_entities = ner_entities + number_entities
+        
+        return all_entities
     except Exception as e:
-        return [{"error": str(e)}]
+        # Hata durumunda sadece sayı tespiti yap
+        return extract_numbers(text)
 
 class URLListRequest(BaseModel):
     urls: List[str]
