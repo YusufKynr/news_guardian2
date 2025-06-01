@@ -2,6 +2,7 @@ package com.newsverifier.controller;
 
 import com.newsverifier.model.NamedEntityResult;
 import com.newsverifier.model.NERApiResponseItem;
+import com.newsverifier.model.NewsAnalysisRequest;
 import com.newsverifier.model.TitleResponse;
 import com.newsverifier.model.search.GoogleSearchResultItem;
 import com.newsverifier.service.GoogleCustomSearchService;
@@ -37,12 +38,25 @@ public class FetchNewsTitleController {
             "message", "Bu endpoint POST method kullanır",
             "usage", "POST /news/title ile haber metnini gönderin",
             "contentType", "application/json",
-            "example", "curl -X POST http://localhost:8000/news/title -H 'Content-Type: application/json' -d '\"haber metni\"'"
+            "example", "curl -X POST http://localhost:8000/news/title -H 'Content-Type: application/json' -d '{\"inputText\":\"haber metni\"}'"
         );
     }
 
     @PostMapping("/news/title")
-    public TitleResponse fetchNewsTitle(@RequestBody String newsText) {
+    public TitleResponse fetchNewsTitle(@RequestBody NewsAnalysisRequest request) {
+        String newsText = request.getInputText();
+        
+        if (newsText == null || newsText.trim().isEmpty()) {
+            return new TitleResponse(
+                "",
+                List.of(),
+                null,
+                "Geçersiz metin",
+                List.of(),
+                "Metin boş veya geçersiz"
+            );
+        }
+        
         // 1. Girilen metin için NER
         List<String> inputTexts = List.of(newsText);
         List<NERApiResponseItem> inputNER = namedEntityService.extractEntities(inputTexts);

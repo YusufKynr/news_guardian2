@@ -16,13 +16,13 @@ public class RestTemplateConfig {
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         // HTTP/1.1 zorlayarak HTTP/2 upgrade sorununu önle
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(10000);
+        factory.setConnectTimeout(30000);  // 30 saniye
+        factory.setReadTimeout(60000);     // 60 saniye
         
         return builder
                 .requestFactory(() -> factory)
-                .connectTimeout(Duration.ofSeconds(5))
-                .readTimeout(Duration.ofSeconds(10))
+                .connectTimeout(Duration.ofSeconds(30))
+                .readTimeout(Duration.ofSeconds(60))
                 .build();
     }
 }
