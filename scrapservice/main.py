@@ -44,10 +44,8 @@ async def get_title(url: str) -> str:
             )
             page = await context.new_page()
             
-            # Timeout'u 60 saniyeye çıkar
             await page.goto(url, timeout=60000, wait_until='domcontentloaded')
             
-            # Biraz bekle
             await page.wait_for_timeout(2000)
             
             title = await page.title()

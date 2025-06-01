@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,6 +20,26 @@ public class FetchNewsTitleController {
     private final GoogleCustomSearchService googleCustomSearchService;
     private final PageTitleService pageTitleService;
     private final NamedEntityService namedEntityService;
+
+    @GetMapping("/")
+    public Map<String, String> home() {
+        return Map.of(
+            "message", "News Guardian API",
+            "version", "1.0.0",
+            "status", "Running",
+            "endpoints", "POST /news/title, GET /status"
+        );
+    }
+
+    @GetMapping("/news/title")
+    public Map<String, String> newsInfo() {
+        return Map.of(
+            "message", "Bu endpoint POST method kullanır",
+            "usage", "POST /news/title ile haber metnini gönderin",
+            "contentType", "application/json",
+            "example", "curl -X POST http://localhost:8000/news/title -H 'Content-Type: application/json' -d '\"haber metni\"'"
+        );
+    }
 
     @PostMapping("/news/title")
     public TitleResponse fetchNewsTitle(@RequestBody String newsText) {

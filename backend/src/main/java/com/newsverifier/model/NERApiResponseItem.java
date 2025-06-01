@@ -1,13 +1,12 @@
 package com.newsverifier.model;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
-@NoArgsConstructor
 public class NERApiResponseItem {
-    private String text;
+    private String url;
+    private String title;
     private List<NamedEntityResult> entities;
 }
